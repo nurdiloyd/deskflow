@@ -44,6 +44,15 @@ static const OptionID kOptionModifierMapForAlt = OPTION_CODE("MMFA");
 static const OptionID kOptionModifierMapForAltGr = OPTION_CODE("MMFG");
 static const OptionID kOptionModifierMapForMeta = OPTION_CODE("MMFM");
 static const OptionID kOptionModifierMapForSuper = OPTION_CODE("MMFR");
+// Right-hand only modifier overrides. Applied by the server before sending, so the value is the modifier the
+// client should end up with (after its own modifier map). Unset means the right key follows the normal map.
+static const OptionID kOptionModifierMapForRightShift = OPTION_CODE("MRFS");
+static const OptionID kOptionModifierMapForRightControl = OPTION_CODE("MRFC");
+static const OptionID kOptionModifierMapForRightAlt = OPTION_CODE("MRFA");
+static const OptionID kOptionModifierMapForRightSuper = OPTION_CODE("MRFR");
+// While a client with this option is active, a Windows server sends AltGr as a plain right Alt: the fake left
+// Ctrl that Windows adds to AltGr is dropped and characters are not resolved through AltGr.
+static const OptionID kOptionAltGrAsAlt = OPTION_CODE("AGAA");
 static const OptionID kOptionHeartbeat = OPTION_CODE("HART");
 static const OptionID kOptionComputerSwitchCorners = OPTION_CODE("SSCM");
 static const OptionID kOptionComputerSwitchCornerSize = OPTION_CODE("SSCS");

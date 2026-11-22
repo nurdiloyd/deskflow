@@ -36,6 +36,8 @@ add_library(server STATIC
   InputFilter.h
   PrimaryClient.cpp
   PrimaryClient.h
+  RightModifierRemapper.cpp
+  RightModifierRemapper.h
   Server.cpp
   Server.h
 )

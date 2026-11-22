@@ -22,6 +22,7 @@
 #include "deskflow/Clipboard.h"
 #include "deskflow/DisplayException.h"
 #include "deskflow/KeyMap.h"
+#include "deskflow/OptionTypes.h"
 #include "platform/MSWindowsClipboard.h"
 #include "platform/MSWindowsDesks.h"
 #include "platform/MSWindowsEventQueueBuffer.h"
@@ -396,11 +397,22 @@ void MSWindowsComputer::screensaver(bool activate)
 void MSWindowsComputer::resetOptions()
 {
   m_desks->resetOptions();
+  MSWindowsHook::setAltGrAsAlt(false);
 }
 
 void MSWindowsComputer::setOptions(const OptionsList &options)
 {
   m_desks->setOptions(options);
+
+  for (size_t i = 0; i + 1 < options.size(); i += 2) {
+    if (options[i] == kOptionAltGrAsAlt) {
+      const bool enabled = (options[i + 1] != 0);
+      if (enabled != MSWindowsHook::isAltGrAsAlt()) {
+        LOG_DEBUG("%s AltGr as right Alt", enabled ? "send" : "stop sending");
+      }
+      MSWindowsHook::setAltGrAsAlt(enabled);
+    }
+  }
 }
 
 void MSWindowsComputer::setSequenceNumber(uint32_t seqNum)

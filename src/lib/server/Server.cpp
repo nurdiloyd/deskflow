@@ -239,6 +239,9 @@ bool Server::setConfig(const ServerConfig &config)
     sendOptions(client);
   }
 
+  // sending options reset the primary's options, so apply the active client's again
+  applyActiveKeyboardOptions();
+
   return true;
 }
 
@@ -485,6 +488,7 @@ void Server::switchComputer(BaseClientProxy *dst, int32_t x, int32_t y, bool for
 
     // cut over
     m_active = dst;
+    applyActiveKeyboardOptions();
 
     // increment enter sequence number
     ++m_seqNum;
@@ -1078,6 +1082,22 @@ void Server::sendOptions(BaseClientProxy *client) const
   client->setOptions(optionsList);
 }
 
+void Server::applyActiveKeyboardOptions()
+{
+  const bool onClient = (m_active != nullptr && m_active != m_primaryClient);
+  const Config::ScreenOptions *options = onClient ? m_config->getOptions(getName(m_active)) : nullptr;
+  m_rightModifiers.configure(options);
+
+  bool altGrAsAlt = false;
+  if (options != nullptr) {
+    if (const auto it = options->find(kOptionAltGrAsAlt); it != options->end()) {
+      altGrAsAlt = (it->second != 0);
+    }
+  }
+  // the primary decides how AltGr is read from its keyboard, so it has to know about the active client
+  m_primaryClient->setOptions({kOptionAltGrAsAlt, altGrAsAlt ? 1u : 0u});
+}
+
 void Server::processOptions()
 {
   const Config::ScreenOptions *options = m_config->getOptions("");
@@ -1539,6 +1559,13 @@ void Server::onKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, const s
 
   // relay
   if (!m_keyboardBroadcasting && IKeyState::KeyInfo::isDefault(computers)) {
+    if (m_rightModifiers.isActive()) {
+      id = m_rightModifiers.translateKey(id, true);
+      if (id == kKeyNone) {
+        return;
+      }
+      mask = m_rightModifiers.translateMask(mask);
+    }
     m_active->keyDown(id, mask, button, lang);
   } else {
     if (!computers && m_keyboardBroadcasting) {
@@ -1562,6 +1589,14 @@ void Server::onKeyUp(KeyID id, KeyModifierMask mask, KeyButton button, const cha
 
   // relay
   if (!m_keyboardBroadcasting && IKeyState::KeyInfo::isDefault(computers)) {
+    if (m_rightModifiers.isActive()) {
+      // translate the mask first, it must still include the key being released
+      mask = m_rightModifiers.translateMask(mask);
+      id = m_rightModifiers.translateKey(id, false);
+      if (id == kKeyNone) {
+        return;
+      }
+    }
     m_active->keyUp(id, mask, button);
   } else {
     if (!computers && m_keyboardBroadcasting) {
@@ -1587,6 +1622,13 @@ void Server::onKeyRepeat(KeyID id, KeyModifierMask mask, int32_t count, KeyButto
   assert(m_active != nullptr);
 
   // relay
+  if (m_rightModifiers.isActive()) {
+    id = m_rightModifiers.translateKey(id, true);
+    if (id == kKeyNone) {
+      return;
+    }
+    mask = m_rightModifiers.translateMask(mask);
+  }
   m_active->keyRepeat(id, mask, count, button, lang);
 }
 
@@ -2044,6 +2086,7 @@ void Server::forceLeaveClient(const BaseClientProxy *client)
 
     // cut over
     m_active = m_primaryClient;
+    applyActiveKeyboardOptions();
 
     // enter new computer (unless we already have because of the
     // screen saver)

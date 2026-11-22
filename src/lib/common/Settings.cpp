@@ -515,6 +515,11 @@ void Settings::removeUnknownComputers(const QStringList &knownComputers)
 
 QVariant Settings::computerDefaults(const QString &key)
 {
+  // right-hand modifier overrides are unset by default (the right key follows the normal modifier map)
+  if (key.startsWith(QStringLiteral("modifierRight")))
+    return QString();
+  if (key == QStringLiteral("altGrAsAlt"))
+    return false;
   if (key.contains(QStringLiteral("halfDuplex")) || key.contains("xtestIsXineramaUnaware") || key.contains("X11") ||
       key.contains("Left") || key.contains("Right"))
     return false;

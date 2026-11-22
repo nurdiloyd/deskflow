@@ -10,6 +10,7 @@
 #include "base/Log.h"
 #include "deskflow/DisplayException.h"
 
+#include <atomic>
 #include <cstring>
 #include <mutex>
 
@@ -42,6 +43,10 @@ static std::mutex g_keyStateMutex;
 static DWORD g_hookThread = 0;
 static bool g_fakeServerInput = false;
 static BOOL g_isPrimary = TRUE;
+static std::atomic<bool> g_altGrAsAlt = false;
+
+// Windows sends a left Ctrl with this scan code ahead of AltGr on layouts that have AltGr
+static const DWORD kAltGrFakeControlScanCode = 0x21d;
 
 MSWindowsHook::~MSWindowsHook()
 {
@@ -145,6 +150,16 @@ void MSWindowsHook::setMode(EHookMode mode)
     return;
   }
   g_mode = mode;
+}
+
+void MSWindowsHook::setAltGrAsAlt(bool enabled)
+{
+  g_altGrAsAlt = enabled;
+}
+
+bool MSWindowsHook::isAltGrAsAlt()
+{
+  return g_altGrAsAlt;
 }
 
 bool MSWindowsHook::getPhysicalKeyState(BYTE keys[256])
@@ -274,7 +289,9 @@ static bool keyboardHookHandler(WPARAM wParam, LPARAM lParam)
   // simulate AltGr (which is ctrl+alt) then we must not clear it.
   UINT control = keys[VK_CONTROL] | keys[VK_LCONTROL] | keys[VK_RCONTROL];
   UINT menu = keys[VK_MENU] | keys[VK_LMENU] | keys[VK_RMENU];
-  if ((control & 0x80) == 0 || (menu & 0x80) == 0) {
+  // when AltGr is a plain Alt, Ctrl+Alt never selects AltGr characters either
+  const bool altGrAsAlt = (g_mode == kHOOK_RELAY_EVENTS) && g_altGrAsAlt;
+  if ((control & 0x80) == 0 || (menu & 0x80) == 0 || altGrAsAlt) {
     keys[VK_LCONTROL] = 0;
     keys[VK_RCONTROL] = 0;
     keys[VK_CONTROL] = 0;
@@ -325,8 +342,8 @@ static bool keyboardHookHandler(WPARAM wParam, LPARAM lParam)
   // we note that's the case in the message sent back to deskflow
   // because there's no simple way to deduce it after the fact.
   // we have to put the dead key back first, if there was one.
-  bool noAltGr = false;
-  if (n == 0 && (control & 0x80) != 0 && (menu & 0x80) != 0) {
+  bool noAltGr = altGrAsAlt && (control & 0x80) != 0 && (menu & 0x80) != 0;
+  if (n == 0 && !altGrAsAlt && (control & 0x80) != 0 && (menu & 0x80) != 0) {
     noAltGr = true;
     PostThreadMessage(g_threadID, DESKFLOW_MSG_DEBUG, wParam | 0x05000000, lParam);
     setDeadKey(wc, 2, flags);
@@ -455,6 +472,12 @@ static LRESULT CALLBACK keyboardLLHook(int code, WPARAM wParam, LPARAM lParam)
     bool const injected = info->flags & LLKHF_INJECTED;
     if (!g_isPrimary && injected) {
       return CallNextHookEx(g_keyboardLL, code, wParam, lParam);
+    }
+
+    // AltGr as Alt: swallow the fake left Ctrl that comes with AltGr so the client never sees Ctrl
+    if (g_mode == kHOOK_RELAY_EVENTS && g_altGrAsAlt && info->vkCode == VK_LCONTROL &&
+        info->scanCode == kAltGrFakeControlScanCode) {
+      return 1;
     }
 
     WPARAM wParam = info->vkCode;

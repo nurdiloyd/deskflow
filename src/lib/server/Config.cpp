@@ -9,6 +9,7 @@
 #include "server/Config.h"
 
 #include "base/IEventQueue.h"
+#include "base/Log.h"
 #include "common/KeyboardModifier.h"
 #include "deskflow/KeyMap.h"
 #include "deskflow/KeyTypes.h"
@@ -117,6 +118,26 @@ bool Config::addComputer(const std::string &name)
   if (superModifier.isEmpty())
     superModifier = kModifierNameSuper;
   addOption(name, kOptionModifierMapForSuper, modifierIDValueFromString(superModifier));
+
+  // right-hand only overrides, added only when set so the right keys otherwise follow the maps above
+  const std::pair<const QString &, OptionID> rightModifiers[] = {
+      {Settings::Computer::ModifierRightShift, kOptionModifierMapForRightShift},
+      {Settings::Computer::ModifierRightCtrl, kOptionModifierMapForRightControl},
+      {Settings::Computer::ModifierRightAlt, kOptionModifierMapForRightAlt},
+      {Settings::Computer::ModifierRightSuper, kOptionModifierMapForRightSuper},
+  };
+  for (const auto &[settingKey, optionId] : rightModifiers) {
+    const auto value = Settings::value(settingKey.arg(computer)).toString();
+    if (value.isEmpty())
+      continue;
+    if (const auto modifierId = modifierIDValueFromString(value); modifierId >= 0)
+      addOption(name, optionId, modifierId);
+    else
+      LOG_WARN("ignoring unknown right modifier \"%s\" for %s", qPrintable(value), qPrintable(computer));
+  }
+
+  if (Settings::value(Settings::Computer::AltGrAsAlt.arg(computer)).toBool())
+    addOption(name, kOptionAltGrAsAlt, 1);
 
   return true;
 }

@@ -16,6 +16,7 @@
 #include "deskflow/KeyTypes.h"
 #include "deskflow/MouseTypes.h"
 #include "server/Config.h"
+#include "server/RightModifierRemapper.h"
 
 #include <climits>
 #include <map>
@@ -303,6 +304,9 @@ private:
   // process options from configuration
   void processOptions();
 
+  // apply the active client's keyboard options (right modifier remap, AltGr as Alt on the primary)
+  void applyActiveKeyboardOptions();
+
   // event handlers
   void handleShapeChanged(BaseClientProxy *client);
   void handleClipboardGrabbed(const Event &event, BaseClientProxy *client);
@@ -461,6 +465,9 @@ private:
   // flag whether or not we have broadcasting enabled and the computers to
   // which we should send broadcasted keys.
   bool m_keyboardBroadcasting = false;
+
+  // right-hand modifier overrides for the active client
+  RightModifierRemapper m_rightModifiers;
 
   // computer locking (former scroll lock)
   bool m_lockedToComputer = false;

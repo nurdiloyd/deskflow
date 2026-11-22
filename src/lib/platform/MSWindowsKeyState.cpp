@@ -667,6 +667,11 @@ KeyID MSWindowsKeyState::mapKeyFromEvent(WPARAM charAndVirtKey, LPARAM info, Key
   // handle some keys via table lookup
   KeyID id = getKeyID(vkCode, (KeyButton)((info >> 16) & 0x1ffu));
 
+  // AltGr as Alt: send the right Alt key itself so the client's Alt mapping applies to it
+  if (id == kKeyAltGr && MSWindowsHook::isAltGrAsAlt()) {
+    id = kKeyAlt_R;
+  }
+
   // check if not in table;  map character to key id
   if (id == kKeyNone && wc != 0) {
     // UTF16

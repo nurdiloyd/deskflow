@@ -65,6 +65,16 @@ public:
   //! Copy the hook's physical key state; false until it has observed an event.
   static bool getPhysicalKeyState(BYTE keys[256]);
 
+  /**
+   * @brief Treat AltGr as a plain right Alt while relaying events to a client.
+   *
+   * Drops the fake left Ctrl that Windows sends with AltGr and stops resolving characters through
+   * Ctrl+Alt, so a client that uses Alt as a modifier (e.g. Command on macOS) gets Alt+key instead of
+   * Ctrl+Alt+key or an AltGr character.
+   */
+  static void setAltGrAsAlt(bool enabled);
+  static bool isAltGrAsAlt();
+
   static EHookResult install();
 
   static int uninstall();
